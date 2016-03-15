@@ -9,6 +9,7 @@
 
 database_module_t *db_mod = NULL;
 mowgli_patricia_t *db_types = NULL;
+hook_t *h_db_read;
 
 database_handle_t *
 db_open(const char *filename, database_transaction_t txn)
@@ -299,4 +300,6 @@ db_init(void)
 		slog(LG_ERROR, "db_init(): object allocator failure");
 		exit(EXIT_FAILURE);
 	}
+
+	h_db_read = hook_add_event("db_read");
 }

@@ -923,6 +923,7 @@ static void corestorage_db_load(const char *filename)
 
 	db_parse(db);
 	db_close(db);
+	hook_call_db_read();
 }
 
 static void corestorage_db_write(void *filename)
