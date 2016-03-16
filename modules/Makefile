@@ -9,6 +9,7 @@ SUBDIRS = \
 	exttarget \
 	gameserv \
 	global \
+	gms \
 	groupserv \
 	helpserv \
 	hostserv \
