@@ -6,22 +6,6 @@
  * - Freenode
  */
 
-
-#include <postgresql/libpq-fe.h>
-#include <postgresql/libpq-events.h>
-#include <atheme.h>
-#include <uplink.h>
-
-const char *pgerr;
-service_t *myservice;
-#include "colors.h"
-#include "util.h"
-#include "reflect.h"
-#include "conn.h"
-#include "conns.h"
-#include "sess.h"
-#include "sesss.h"
-
 typedef struct
 {
 	service_t *svc;                          // Atheme service tag
@@ -35,12 +19,14 @@ int pg_query2(PG *, conn_t *, const char *query, conn_handle_result_t handler); 
 int pg_query(PG *, conn_t *, const char *query);
 int pg_ping(PG *, const char *const *keys, const char *const *vals, const char **ret);            // [WARNING: BLOCKS] assigns static string if ret!=NULL
 
+#ifdef PG_MODULE_INTERNAL
 const sess_t *pg_sess_find(const PG *, const user_t *user);
 sess_t *pg_sess_find_mutable(PG *, const user_t *user);
 void pg_sess_delete(PG *, sess_t *);
 size_t pg_sesss_delete_if(PG *, int (*func)(sess_t *));
 size_t pg_sesss_delete(PG *);                                                                     // terminate all sessions
 sess_t *pg_sess_new(PG *, user_t *user, conn_t *conn);
+#endif
 
 const conn_t *pg_conn_find(const PG *, const int id);
 conn_t *pg_conn_find_mutable(PG *, const int id);
@@ -51,33 +37,13 @@ int pg_conn_reset(PG *, conn_t *);
 conn_t *pg_conn_new(PG *, myuser_t *owner, const char *const *keys, const char *const *vals);
 
 
-PG *pg;
-
-
-static
-void module_init_common(module_t *const m)
-{
-	void *sym_ptr;
-	MODULE_TRY_REQUEST_SYMBOL(m, sym_ptr, "pgsql/pgsql", "pg");
-	pg = *((PG **)sym_ptr);
-	myservice = pg->svc;
-	pgerr = "";
-}
-
-
-static
-void module_fini_common(module_unload_intent_t intent)
-{
-}
-
-
 inline
 conn_t *pg_conn_new(PG *const pg,
                     myuser_t *owner,
                     const char *const *const keys,
                     const char *const *const vals)
 {
-	conn_t *const c = mowgli_alloc(sizeof(conn_t));
+	conn_t *const c = (conn_t *)mowgli_alloc(sizeof(conn_t));
 	if(!conn_init(c, owner, keys, vals))
 	{
 		mowgli_free(c);
@@ -119,6 +85,7 @@ int pg_conn_reset(PG *const pg,
 }
 
 
+#ifdef PG_MODULE_INTERNAL
 inline
 size_t pg_conns_delete(PG *const pg)
 {
@@ -129,8 +96,10 @@ size_t pg_conns_delete(PG *const pg)
 
 	return pg_conns_delete_if(pg, deleter);
 }
+#endif
 
 
+#ifndef __cplusplus
 inline
 size_t pg_conns_delete_if(PG *const pg,
                           int (*const func)(conn_t *))
@@ -148,6 +117,7 @@ size_t pg_conns_delete_if(PG *const pg,
 	conns_foreach_mutable(&pg->conns, deleter);
 	return ret;
 }
+#endif
 
 
 inline
@@ -157,24 +127,28 @@ void pg_conn_delete(PG *const pg,
 	if(!c)
 		return;
 
+	#ifdef PG_MODULE_INTERNAL
 	int has_conn(sess_t *const s)
 	{
 		return s->conn == c;
 	}
 
 	pg_sesss_delete_if(pg, has_conn);
+	#endif
+
 	conns_del(&pg->conns, c);
 	conn_fini(c);
 	mowgli_free(c);
 }
 
 
+#ifdef PG_MODULE_INTERNAL
 inline
 sess_t *pg_sess_new(PG *const pg,
                     user_t *const user,
                     conn_t *const conn)
 {
-	sess_t *const s = mowgli_alloc(sizeof(sess_t));
+	sess_t *const s = (sess_t *)mowgli_alloc(sizeof(sess_t));
 	if(!sess_init(s, user, conn))
 	{
 		mowgli_free(s);
@@ -189,8 +163,10 @@ sess_t *pg_sess_new(PG *const pg,
 
 	return s;
 }
+#endif
 
 
+#ifdef PG_MODULE_INTERNAL
 inline
 size_t pg_sesss_delete(PG *const pg)
 {
@@ -201,8 +177,10 @@ size_t pg_sesss_delete(PG *const pg)
 
 	return pg_sesss_delete_if(pg, deleter);
 }
+#endif
 
 
+#ifdef PG_MODULE_INTERNAL
 inline
 size_t pg_sesss_delete_if(PG *const pg,
                           int (*const func)(sess_t *))
@@ -220,8 +198,10 @@ size_t pg_sesss_delete_if(PG *const pg,
 	sesss_foreach_mutable(&pg->sesss, deleter);
 	return ret;
 }
+#endif
 
 
+#ifdef PG_MODULE_INTERNAL
 inline
 void pg_sess_delete(PG *const pg,
                     sess_t *const s)
@@ -233,8 +213,10 @@ void pg_sess_delete(PG *const pg,
 	sess_fini(s);
 	mowgli_free(s);
 }
+#endif
 
 
+#ifdef PG_MODULE_INTERNAL
 inline
 sess_t *pg_sess_find_mutable(PG *const pg,
                              const user_t *const user)
@@ -248,8 +230,10 @@ sess_t *pg_sess_find_mutable(PG *const pg,
 
 	return s;
 }
+#endif
 
 
+#ifdef PG_MODULE_INTERNAL
 inline
 const sess_t *pg_sess_find(const PG *const pg,
                            const user_t *user)
@@ -263,6 +247,7 @@ const sess_t *pg_sess_find(const PG *const pg,
 
 	return s;
 }
+#endif
 
 
 inline
