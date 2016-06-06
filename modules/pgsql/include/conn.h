@@ -24,6 +24,7 @@ typedef struct conn
 	myuser_t *owner;
 	user_t *tty;
 	PGconn *conn;
+	void *priv;                                  // available to software
 	mowgli_eventloop_pollable_t *pollable;
 	bool connecting;
 	uint64_t queries_sent;
@@ -47,8 +48,8 @@ conn_t;
 // Observers
 int conn_id(const conn_t *);
 int conn_busy(const conn_t *);
-int conn_status(const conn_t *);
-int conn_trans_status(const conn_t *);
+ConnStatusType conn_status(const conn_t *);
+PGTransactionStatusType conn_trans_status(const conn_t *);
 const char *conn_errmsg(const conn_t *);
 
 // Utils
@@ -211,18 +212,15 @@ int conn_query_cancel(conn_t *const c,
                       char *const errbuf,
                       const size_t bufmax)
 {
-	void free(PGcancel *const *const cancel)
-	{
-		PQfreeCancel(*cancel);
-	}
-
-	PGcancel *cancel scope(free) = PQgetCancel(c->conn);
+	PGcancel *const cancel = PQgetCancel(c->conn);
 	if(!PQcancel(cancel, errbuf, bufmax))
 	{
 		mowgli_strlcpy(errbuf, conn_errmsg(c), bufmax);
+		PQfreeCancel(cancel);
 		return 0;
 	}
 
+	PQfreeCancel(cancel);
 	return 1;
 }
 
@@ -246,7 +244,7 @@ int conn_set_iocb(conn_t *const c,
 void _conn_result_notice_handler(void *const conn,
                                  const PGresult *const result)
 {
-	conn_t *const c = conn;
+	conn_t *const c = (conn_t *)conn;
 	const char *const msg = PQresultErrorMessage(result);
 	slog(LG_ERROR, "PGSQL: #%d: RESULT NOTICE: %s",
 	               conn_id(c),
@@ -261,7 +259,7 @@ int _conn_event_handler(PGEventId id,
                         void *const data,
                         void *const conn)
 {
-	conn_t *const c = conn;
+	conn_t *const c = (conn_t *)conn;
 	slog(LG_DEBUG, "PGSQL: #%d: EVENT: %s (%d)",
 	               conn_id(c),
 	               reflect_event(id),
@@ -337,7 +335,7 @@ ssize_t conn_process_result(conn_t *const c)
 	if(!c->handle_result && ret)
 	{
 		slog(LG_INFO, "PGSQL: #%d: Missed %zu results.", conn_id(c), ret);
-		conn_tty(c, "Missed %zu results.", conn_id(c), ret);
+		conn_tty(c, "Missed %zu results.", ret);
 	}
 
 	return ret;
@@ -364,7 +362,7 @@ ssize_t conn_process_notify(conn_t *const c)
 	if(!c->handle_notify && ret)
 	{
 		slog(LG_INFO, "PGSQL: #%d: Missed %zu notifies.", conn_id(c), ret);
-		conn_tty(c, "Missed %zu notifies.", conn_id(c), ret);
+		conn_tty(c, "Missed %zu notifies.", ret);
 	}
 
 	return ret;
@@ -438,14 +436,14 @@ const char *conn_errmsg(const conn_t *const c)
 
 
 inline
-int conn_trans_status(const conn_t *const c)
+PGTransactionStatusType conn_trans_status(const conn_t *const c)
 {
 	return PQtransactionStatus(c->conn);
 }
 
 
 inline
-int conn_status(const conn_t *const c)
+ConnStatusType conn_status(const conn_t *const c)
 {
 	return PQstatus(c->conn);
 }

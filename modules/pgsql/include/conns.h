@@ -53,18 +53,15 @@ inline
 conn_t *conns_find_by_id_mutable(conns_t *const conns,
                                  const int id)
 {
-	conn_t *ret = NULL;
-	int match(conn_t *const c)
+	mowgli_node_t *n, *tn;
+	MOWGLI_LIST_FOREACH_SAFE(n, tn, conns->list.head)
 	{
-		if(conn_id(c) != id)
-			return 0;
-
-		ret = c;
-		return 1;
+		conn_t *const conn = (conn_t *)n->data;
+		if(conn_id(conn) == id)
+			return conn;
 	}
 
-	conns_until_mutable(conns, match);
-	return ret;
+	return NULL;
 }
 
 
@@ -72,18 +69,15 @@ inline
 const conn_t *conns_find_by_id(const conns_t *const conns,
                                const int id)
 {
-	const conn_t *ret = NULL;
-	int match(const conn_t *const c)
+	mowgli_node_t *n, *tn;
+	MOWGLI_LIST_FOREACH_SAFE(n, tn, conns->list.head)
 	{
-		if(conn_id(c) != id)
-			return 0;
-
-		ret = c;
-		return 1;
+		const conn_t *const conn = (const conn_t *)n->data;
+		if(conn_id(conn) == id)
+			return conn;
 	}
 
-	conns_until(conns, match);
-	return ret;
+	return NULL;
 }
 
 
@@ -101,7 +95,7 @@ int conns_until_mutable(conns_t *const conns,
 	mowgli_node_t *n, *tn;
 	MOWGLI_LIST_FOREACH_SAFE(n, tn, conns->list.head)
 	{
-		conn_t *const conn = n->data;
+		conn_t *const conn = (conn_t *)n->data;
 		if(func(conn))
 			return 1;
 	}
@@ -117,7 +111,7 @@ int conns_until(const conns_t *const conns,
 	mowgli_node_t *n;
 	MOWGLI_LIST_FOREACH(n, (mowgli_node_t *)conns->list.head)
 	{
-		const conn_t *const conn = n->data;
+		const conn_t *const conn = (const conn_t *)n->data;
 		if(func(conn))
 			return 1;
 	}
@@ -133,7 +127,7 @@ void conns_foreach_mutable(conns_t *const conns,
 	mowgli_node_t *n, *tn;
 	MOWGLI_LIST_FOREACH_SAFE(n, tn, conns->list.head)
 	{
-		conn_t *const conn = n->data;
+		conn_t *const conn = (conn_t *)n->data;
 		func(conn);
 	}
 }
@@ -146,7 +140,7 @@ void conns_foreach(const conns_t *const conns,
 	mowgli_node_t *n;
 	MOWGLI_LIST_FOREACH(n, (mowgli_node_t *)conns->list.head)
 	{
-		const conn_t *const conn = n->data;
+		const conn_t *const conn = (const conn_t *)n->data;
 		func(conn);
 	}
 }

@@ -15,4 +15,4 @@ include ../../buildsys.mk
 include ../../buildsys.module.mk
 
 LIBS +=	-L../../libathemecore -lathemecore -lpq ${LDFLAGS_RPATH}
-CPPFLAGS += -I../../include
+CPPFLAGS += -DPG_MODULE_INTERNAL -Iinclude -I../../include

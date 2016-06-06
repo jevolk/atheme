@@ -6,7 +6,6 @@
  * - Freenode
  */
 
-#define scope(fun)  __attribute__((__cleanup__(fun)))
 
 inline
 void sendto_realops_snomask(const char *snobuf, const char *fmt, ...) PRINTFLIKE(2, 3);
@@ -47,7 +46,8 @@ ssize_t util_parv_to_kv(const int parc,
 
 static
 void debug_result(const PGresult *const r,
-                  void (*const liner)(const char *line))
+                  void (*const liner)(const char *line, void *priv),
+                  void *const priv)
 {
 	const PQprintOpt opt =
 	{
@@ -57,9 +57,9 @@ void debug_result(const PGresult *const r,
 		.html3 = false,
 		.expanded = false,
 		.pager = false,
-		.fieldSep = "|",
-		.tableOpt = "",
-		.caption = "",
+		.fieldSep = (char *)"|",
+		.tableOpt = (char *)"",
+		.caption = (char *)"",
 	};
 
 	static char buf[1024 * 1024];
@@ -71,7 +71,7 @@ void debug_result(const PGresult *const r,
 	size_t len = 0;
 	ssize_t read;
 	while((read = getline(&line, &len, f)) != -1)
-		liner(line);
+		liner(line, priv);
 
 	free(line);
 	fclose(f);

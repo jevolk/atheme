@@ -51,18 +51,15 @@ inline
 sess_t *sesss_find_mutable(sesss_t *const sesss,
                            const user_t *const user)
 {
-	sess_t *ret = NULL;
-	int match(sess_t *const s)
+	mowgli_node_t *n;
+	MOWGLI_LIST_FOREACH(n, (mowgli_node_t *)sesss->list.head)
 	{
-		if(s->user != user)
-			return 0;
-
-		ret = s;
-		return 1;
+		sess_t *const sess = (sess_t *)n->data;
+		if(sess->user == user)
+			return sess;
 	}
 
-	sesss_until_mutable(sesss, match);
-	return ret;
+	return NULL;
 }
 
 
@@ -70,18 +67,15 @@ inline
 const sess_t *sesss_find(const sesss_t *const sesss,
                          const user_t *const user)
 {
-	const sess_t *ret = NULL;
-	int match(const sess_t *const s)
+	mowgli_node_t *n;
+	MOWGLI_LIST_FOREACH(n, (mowgli_node_t *)sesss->list.head)
 	{
-		if(s->user != user)
-			return 0;
-
-		ret = s;
-		return 1;
+		const sess_t *const sess = (const sess_t *)n->data;
+		if(sess->user == user)
+			return sess;
 	}
 
-	sesss_until(sesss, match);
-	return ret;
+	return NULL;
 }
 
 
@@ -99,7 +93,7 @@ int sesss_until_mutable(sesss_t *const sesss,
 	mowgli_node_t *n, *tn;
 	MOWGLI_LIST_FOREACH_SAFE(n, tn, sesss->list.head)
 	{
-		sess_t *const sess = n->data;
+		sess_t *const sess = (sess_t *)n->data;
 		if(func(sess))
 			return 1;
 	}
@@ -115,7 +109,7 @@ int sesss_until(const sesss_t *const sesss,
 	mowgli_node_t *n;
 	MOWGLI_LIST_FOREACH(n, (mowgli_node_t *)sesss->list.head)
 	{
-		const sess_t *const sess = n->data;
+		const sess_t *const sess = (const sess_t *)n->data;
 		if(func(sess))
 			return 1;
 	}
@@ -131,7 +125,7 @@ void sesss_foreach_mutable(sesss_t *const sesss,
 	mowgli_node_t *n, *tn;
 	MOWGLI_LIST_FOREACH_SAFE(n, tn, sesss->list.head)
 	{
-		sess_t *const sess = n->data;
+		sess_t *const sess = (sess_t *)n->data;
 		func(sess);
 	}
 }
@@ -144,7 +138,7 @@ void sesss_foreach(const sesss_t *const sesss,
 	mowgli_node_t *n;
 	MOWGLI_LIST_FOREACH(n, (mowgli_node_t *)sesss->list.head)
 	{
-		const sess_t *const sess = n->data;
+		const sess_t *const sess = (const sess_t *)n->data;
 		func(sess);
 	}
 }

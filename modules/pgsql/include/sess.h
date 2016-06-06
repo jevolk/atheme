@@ -63,24 +63,32 @@ void sess_command(sess_t *const s,
 {
 	if(!conn_query(s->conn, cmd))
 	{
-		command_fail(si, 0, "ERROR: Failed to send query.");
+		command_fail(si, fault_badparams, "ERROR: Failed to send query.");
 		return;
 	}
 }
 
 
+#ifdef PG_MODULE_INTERNAL
+inline
+void line_to_tty(const char *const line,
+                 void *const priv)
+{
+	conn_t *const c = (conn_t *)priv;
+
+	if(line && line[0])
+		conn_tty(c, "%s", line);
+}
+#endif // PG_MODULE_INTERNAL
+
+
+#ifdef PG_MODULE_INTERNAL
 inline
 void _sess_result_to_tty(conn_t *const c,
                          const PGresult *const result)
 {
-	void line_to_tty(const char *const line)
-	{
-		if(line && line[0])
-			conn_tty(c, "%s", line);
-	}
-
 	int color = FG_YELLOW;
-	const int status = PQresultStatus(result);
+	const ExecStatusType status = PQresultStatus(result);
 	switch(status)
 	{
 		case PGRES_TUPLES_OK:
@@ -89,15 +97,16 @@ void _sess_result_to_tty(conn_t *const c,
 			color = BG_GREEN;
 			break;
 
-		case PGRES_FATAL_ERROR:
-		case PGRES_BAD_RESPONSE:
-			color = BG_RED;
-			break;
-
 		case PGRES_COPY_IN:
 		case PGRES_COPY_OUT:
 		case PGRES_COPY_BOTH:
 			color = BG_BLUE;
+			break;
+
+		default:
+		case PGRES_FATAL_ERROR:
+		case PGRES_BAD_RESPONSE:
+			color = BG_RED;
 			break;
 	}
 
@@ -112,5 +121,6 @@ void _sess_result_to_tty(conn_t *const c,
 	         FG_RED,
 	         PQresultErrorMessage(result));
 
-	debug_result(result, line_to_tty);
+	debug_result(result, line_to_tty, c);
 }
+#endif // PG_MODULE_INTERNAL
