@@ -7,10 +7,11 @@
  */
 
 struct conn;
+typedef void (*conn_handle_status_t)(struct conn *, ConnStatusType);
 typedef void (*conn_handle_result_t)(struct conn *, const PGresult *);
 typedef void (*conn_handle_notice_t)(struct conn *, const PGresult *, const char *msg);
-typedef void (*conn_handle_notify_t)(struct conn *, const char *name, const int pid, const char *val);
-typedef int (*conn_handle_event_any_t)(struct conn *, const PGEventId, void *data);
+typedef void (*conn_handle_notify_t)(struct conn *, const char *name, int pid, const char *val);
+typedef int (*conn_handle_event_any_t)(struct conn *, PGEventId, void *data);
 typedef int (*conn_handle_event_register_t)(struct conn *, PGEventRegister *);
 typedef int (*conn_handle_event_conn_reset_t)(struct conn *, PGEventConnReset *);
 typedef int (*conn_handle_event_conn_destroy_t)(struct conn *, PGEventConnDestroy *);
@@ -42,6 +43,7 @@ typedef struct conn
 	conn_handle_notify_t handle_notify;
 	conn_handle_notice_t handle_notice;
 	conn_handle_result_t handle_result;
+	conn_handle_status_t handle_status;
 }
 conn_t;
 
@@ -139,10 +141,16 @@ void conn_fini(conn_t *const c)
 		return;
 
 	if(c->pollable)
+	{
 		mowgli_pollable_destroy(base_eventloop, c->pollable);
+		c->pollable = NULL;
+	}
 
 	if(c->conn)
+	{
 		PQfinish(c->conn);
+		c->conn = NULL;
+	}
 }
 
 

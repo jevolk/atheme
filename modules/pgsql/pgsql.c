@@ -17,12 +17,13 @@ void handle_established(conn_t *const c)
 	const int status = conn_status(c);
 	const char *const msg = reflect_status(status);
 	c->connecting = false;
-	conn_tty(c, "Connection established: \2\3%02d%s\x0f",
-	         status == CONNECTION_OK? FG_GREEN : FG_RED,
-	         msg);
 
-	if(status != CONNECTION_OK)
-		pg_conn_delete(pg, c);
+	// When the status handler is set the user is probably not human.
+	// Otherwise we send an IRC message indicating the connect result.
+	if(!c->handle_status)
+		conn_tty(c, "Connection established: \2\3%02d%s\x0f",
+		         status == CONNECTION_OK? FG_GREEN : FG_RED,
+		         msg);
 }
 
 
@@ -34,11 +35,27 @@ void handle_ready(conn_t *const c)
 	     conn_id(c),
 	     reflect_status(conn_status(c)));
 
+	// Most callbacks are triggered here. c->handle_status is not, so it
+	// indicates readiness after any/all results are called back, below.
 	conn_process(c);
 
 	// Case to indicate initial connection to user.
 	if(c->connecting)
 		handle_established(c);
+
+	// When the user is handling this, they control pg_conn_delete().
+	// *c may be destroyed by this callback. Must return straight to Atheme.
+	if(c->handle_status)
+	{
+		c->handle_status(c, conn_status(c));
+		return;
+	}
+
+	if(conn_status(c) != CONNECTION_OK)
+	{
+		pg_conn_delete(pg, c);
+		return;
+	}
 }
 
 
@@ -60,13 +77,19 @@ void handle_writing(conn_t *const c)
 static
 void handle_failed(conn_t *const c)
 {
-	slog(LG_ERROR, "PGSQL: #%d: Connection Failed: %s", conn_id(c), conn_errmsg(c));
+	slog(LG_ERROR, "PGSQL: #%d: Connection Failed: %s",
+	     conn_id(c),
+	     conn_errmsg(c));
+
 	if(c->owner)
 		conn_tty(c, "Connection failed: \2\3%02d%s\x0f",
 		         FG_RED,
 		         conn_errmsg(c));
 
-	pg_conn_delete(pg, c);
+	if(c->handle_status)
+		c->handle_status(c, conn_status(c));
+	else
+		pg_conn_delete(pg, c);
 }
 
 
